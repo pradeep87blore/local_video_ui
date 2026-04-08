@@ -1,6 +1,19 @@
 # Local video UI (ComfyUI + prompt window)
 
-Single-folder Windows workflow: this repo contains the thin desktop UI; **ComfyUI itself is downloaded automatically** into `vendor/comfyui` the first time you run [`Launch.bat`](Launch.bat) (or [`Launch.ps1`](Launch.ps1)). Large **model weights** are not in git; they are fetched from Hugging Face when needed.
+## What this project is for
+
+This is a **small Windows companion app** for **local AI text-to-video**: you type what you want to see, set an approximate clip length, and get an **MP4** file on disk—without opening ComfyUI’s node graph or a browser. Under the hood it drives **[ComfyUI](https://github.com/comfyanonymous/ComfyUI)** over its HTTP API using a fixed **Wan 2.1** text-to-video workflow (the same family of models Comfy’s official examples use), so generation stays **on your machine** (GPU recommended).
+
+**Who it’s for:** people who already want Comfy + Wan but prefer a **single prompt box**, a **progress bar**, and **organized outputs** over clicking nodes. It is **not** a hosted service: ComfyUI runs locally, and this UI is just a front end plus automation.
+
+**What you get out of the box**
+
+- **Desktop UI** (Tkinter): prompt, target duration, generate, open last video / output folder.
+- **Optional background audio**: can mux an **instrumental MusicGen** bed onto the video (scene-conditioned; not literal foley), via FFmpeg.
+- **Logging**: global log under `logs/`; each run can write a **`generation.log`** and workflow snapshot next to the exported video; periodic **CPU / RAM / GPU** lines for troubleshooting.
+- **Optional Gradio UI** (`app.py`): same backend in a browser tab if you prefer.
+
+Single-folder Windows workflow: **ComfyUI itself is downloaded automatically** into `vendor/comfyui` the first time you run [`Launch.bat`](Launch.bat) (or [`Launch.ps1`](Launch.ps1)). Large **model weights** are not in git; they are fetched from Hugging Face when needed.
 
 ## Prerequisites
 
