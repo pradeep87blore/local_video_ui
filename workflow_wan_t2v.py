@@ -31,7 +31,7 @@ def build_wan_t2v_prompt(
         "1": {
             "class_type": "UNETLoader",
             "inputs": {
-                "unet_name": "wan2.1_t2v_1.3B_fp16.safetensors",
+                "unet_name": config.MODEL_DIFFUSION_FILE,
                 "weight_dtype": "default",
             },
         },
@@ -45,7 +45,7 @@ def build_wan_t2v_prompt(
         "3": {
             "class_type": "CLIPLoader",
             "inputs": {
-                "clip_name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+                "clip_name": config.MODEL_CLIP_FILE,
                 "type": "wan",
                 "device": "default",
             },
@@ -91,7 +91,7 @@ def build_wan_t2v_prompt(
         "8": {
             "class_type": "VAELoader",
             "inputs": {
-                "vae_name": "wan_2.1_vae.safetensors",
+                "vae_name": config.MODEL_VAE_FILE,
             },
         },
         "9": {

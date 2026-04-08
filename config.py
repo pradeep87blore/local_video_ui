@@ -42,6 +42,11 @@ MODEL_FILES: list[tuple[str, str, str]] = [
     ),
 ]
 
+# Filenames under ComfyUI models/ (same as workflow_wan_t2v + download_models)
+MODEL_DIFFUSION_FILE = MODEL_FILES[0][2]
+MODEL_CLIP_FILE = MODEL_FILES[1][2]
+MODEL_VAE_FILE = MODEL_FILES[2][2]
+
 # Default negative prompt (English; user only types the positive in the UI)
 DEFAULT_NEGATIVE_PROMPT = (
     "worst quality, low quality, blurry, jpeg artifacts, watermark, text, logo, "

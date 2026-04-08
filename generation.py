@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 import logging
 import traceback
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
@@ -25,23 +25,23 @@ WORKFLOW_SNAPSHOT_NAME = "comfy_workflow.json"
 
 def setup_logging() -> None:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
-    fmt = "%(asctime)sZ [%(levelname)s] %(name)s: %(message)s"
+    fmt = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 
-    class UtcFormatter(logging.Formatter):
+    class LocalTimeFormatter(logging.Formatter):
         def formatTime(self, record, datefmt=None):
-            dt = datetime.fromtimestamp(record.created, tz=timezone.utc)
+            dt = datetime.fromtimestamp(record.created).astimezone()
             if datefmt:
                 return dt.strftime(datefmt)
-            return dt.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
+            return dt.strftime("%Y-%m-%dT%H:%M:%S%z")
 
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
     fh = logging.FileHandler(LOG_FILE, encoding="utf-8")
     fh.setLevel(logging.DEBUG)
-    fh.setFormatter(UtcFormatter(fmt))
+    fh.setFormatter(LocalTimeFormatter(fmt))
     ch = logging.StreamHandler()
     ch.setLevel(logging.INFO)
-    ch.setFormatter(UtcFormatter(fmt))
+    ch.setFormatter(LocalTimeFormatter(fmt))
     root.handlers.clear()
     root.addHandler(fh)
     root.addHandler(ch)
@@ -65,11 +65,16 @@ def _write_generation_log(
 ) -> Path:
     """Write generation.log next to the video (same folder)."""
     log_path = run_folder / GENERATION_LOG_NAME
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = datetime.now().astimezone().strftime("%Y-%m-%dT%H:%M:%S%z")
     trimmed = raw_input_prompt.strip()
     lines: list[str] = [
         "Local video UI — generation log",
-        f"UTC: {now}",
+        f"Local time: {now}",
+        "",
+        "## Models used for this generation",
+        f"- Diffusion (UNET): {config.MODEL_DIFFUSION_FILE}",
+        f"- CLIP (text encoder): {config.MODEL_CLIP_FILE}",
+        f"- VAE: {config.MODEL_VAE_FILE}",
         "",
         "## Input prompt (as entered)",
         raw_input_prompt if raw_input_prompt else "(empty)",
@@ -112,7 +117,6 @@ def _write_generation_log(
             f"- Sampler steps: {config.SAMPLER_STEPS}, CFG: {config.SAMPLER_CFG}",
             f"- Sampler: {config.SAMPLER_NAME} / {config.SAMPLER_SCHEDULER}",
             f"- Model sampling shift (ModelSamplingSD3): {config.MODEL_SAMPLING_SHIFT}",
-            f"- Diffusion model: wan2.1_t2v_1.3B_fp16.safetensors",
             "",
         ]
     )
@@ -218,6 +222,12 @@ def generate_video_from_prompt(
     except OSError as e:
         log.warning("Could not write last_prompt.json: %s", e)
 
+    log.info(
+        "Models: UNET=%s CLIP=%s VAE=%s",
+        config.MODEL_DIFFUSION_FILE,
+        config.MODEL_CLIP_FILE,
+        config.MODEL_VAE_FILE,
+    )
     log.info(
         "Generation: ~%.2fs, %d frames, folder=%s",
         actual_sec,

@@ -4,7 +4,7 @@ Prompt → safe folder names; per-run output directory under ComfyUI output.
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 
@@ -43,7 +43,7 @@ def prepare_run_output_folder(comfy_root: Path, positive_prompt: str) -> tuple[s
     - Absolute Path to that run folder (video + logs live here).
     """
     safe = slugify_prompt(positive_prompt)
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now().astimezone().strftime("%Y%m%d_%H%M%S")
     base_name = f"{ts}_{safe}"
     # Windows path segment length safety
     if len(base_name) > 180:
