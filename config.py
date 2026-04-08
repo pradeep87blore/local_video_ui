@@ -81,3 +81,6 @@ AUDIO_ENABLE = os.environ.get("LOCAL_VIDEO_UI_AUDIO", "1").strip().lower() not i
 AUDIO_MODEL_ID = os.environ.get("LOCAL_VIDEO_UI_AUDIO_MODEL", "facebook/musicgen-small").strip()
 AUDIO_DEVICE = os.environ.get("LOCAL_VIDEO_UI_AUDIO_DEVICE", "cpu").strip().lower()
 AUDIO_GUIDANCE_SCALE = float(os.environ.get("LOCAL_VIDEO_UI_AUDIO_GUIDANCE", "3.0"))
+
+# Optional PNG previews from final MP4 (FFmpeg); one frame every N seconds of video time
+PREVIEW_FRAME_INTERVAL_SEC = float(os.environ.get("LOCAL_VIDEO_UI_PREVIEW_INTERVAL_SEC", "15"))

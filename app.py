@@ -18,6 +18,7 @@ def _generate(
     positive_prompt: str,
     duration_sec: float,
     add_audio: bool,
+    save_preview_frames: bool,
     progress: gr.Progress = gr.Progress(),
 ):
     def cb(p: float) -> None:
@@ -28,6 +29,7 @@ def _generate(
         duration_seconds=duration_sec,
         on_progress=cb,
         add_audio=add_audio,
+        save_preview_frames=save_preview_frames,
     )
 
 
@@ -61,13 +63,17 @@ def main() -> None:
             label="Add realistic background audio (MusicGen + FFmpeg mux)",
             value=True,
         )
+        save_preview = gr.Checkbox(
+            label=f"Save preview PNGs every {int(config.PREVIEW_FRAME_INTERVAL_SEC)}s of video (FFmpeg, run output folder)",
+            value=False,
+        )
         go = gr.Button("Generate", variant="primary")
         video = gr.Video(label="Output", interactive=False)
         status = gr.Textbox(label="Status / path", lines=8)
 
         go.click(
             fn=_generate,
-            inputs=[prompt, duration, add_audio],
+            inputs=[prompt, duration, add_audio, save_preview],
             outputs=[video, status],
         )
 

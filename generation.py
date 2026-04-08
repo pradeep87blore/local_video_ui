@@ -14,6 +14,7 @@ import audio_track
 import comfy_client
 import config
 import filename_prefix
+import preview_frames
 from workflow_wan_t2v import build_wan_t2v_prompt
 
 LOG_DIR = Path(__file__).resolve().parent / "logs"
@@ -60,6 +61,7 @@ def _write_generation_log(
     video_path: str | None,
     error_message: str | None,
     audio_note: str | None = None,
+    preview_note: str | None = None,
 ) -> Path:
     """Write generation.log next to the video (same folder)."""
     log_path = run_folder / GENERATION_LOG_NAME
@@ -142,6 +144,9 @@ def _write_generation_log(
     if audio_note is not None:
         lines.extend(["## Background audio (MusicGen + FFmpeg)", audio_note, ""])
 
+    if preview_note is not None:
+        lines.extend(["## Preview frames (FFmpeg, from final MP4)", preview_note, ""])
+
     if error_message:
         lines.extend(["## Result", "FAILED", "", error_message, ""])
     else:
@@ -157,6 +162,7 @@ def generate_video_from_prompt(
     on_progress: Callable[[float], None] | None = None,
     *,
     add_audio: bool = True,
+    save_preview_frames: bool = False,
 ) -> tuple[str | None, str]:
     """
     Returns (video_path_or_none, user-facing status message).
@@ -238,6 +244,7 @@ def generate_video_from_prompt(
                 video_path=None,
                 error_message=err_txt,
                 audio_note=None,
+                preview_note=None,
             )
         except OSError:
             log_path = run_folder / GENERATION_LOG_NAME
@@ -254,6 +261,10 @@ def generate_video_from_prompt(
     else:
         audio_note = "Background audio not added (unchecked in UI)."
 
+    preview_note: str | None = None
+    if save_preview_frames:
+        preview_note = preview_frames.try_extract_preview_frames(Path(p), run_folder)
+
     try:
         log_path = _write_generation_log(
             run_folder,
@@ -268,6 +279,7 @@ def generate_video_from_prompt(
             video_path=p,
             error_message=None,
             audio_note=audio_note,
+            preview_note=preview_note,
         )
     except OSError as e:
         log.warning("Could not write generation.log: %s", e)
@@ -277,6 +289,8 @@ def generate_video_from_prompt(
     msg = (
         f"Saved ({length_frames} frames ≈ {actual_sec:.2f}s @ {config.VIDEO_FPS} fps):\n{p}\n\n"
         f"Audio: {audio_note}\n\n"
-        f"Log: {log_path}"
     )
+    if preview_note is not None:
+        msg += f"Preview frames: {preview_note}\n\n"
+    msg += f"Log: {log_path}"
     return p, msg

@@ -78,6 +78,15 @@ def main() -> None:
         variable=add_audio_var,
     ).pack(anchor=tk.W)
 
+    preview_row = ttk.Frame(frm)
+    preview_row.pack(fill=tk.X, pady=(0, 6))
+    save_preview_var = tk.BooleanVar(value=False)
+    ttk.Checkbutton(
+        preview_row,
+        text=f"Save preview PNGs every {int(config.PREVIEW_FRAME_INTERVAL_SEC)}s of video (FFmpeg, same folder as output)",
+        variable=save_preview_var,
+    ).pack(anchor=tk.W)
+
     progress_var = tk.DoubleVar(value=0.0)
     bar = ttk.Progressbar(frm, variable=progress_var, maximum=100.0, length=560, mode="determinate")
     bar.pack(fill=tk.X, pady=(0, 8))
@@ -143,6 +152,7 @@ def main() -> None:
                 duration_seconds=d,
                 on_progress=safe_progress,
                 add_audio=add_audio_var.get(),
+                save_preview_frames=save_preview_var.get(),
             )
             root.after(0, lambda: on_done(path, msg))
 
