@@ -1,14 +1,11 @@
-# Prerequisites: Python 3.10+ on PATH (py launcher recommended on Windows)
-# Run:  cd ...\local_video_ui ; .\setup.ps1
+# Prerequisites: Python 3.10+ on PATH; Git (for first-time ComfyUI clone). Run: .\setup.ps1
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Comfy = Join-Path $Root "..\comfy_ui"
+$Comfy = Join-Path $Root "vendor\comfyui"
 $VenvPy = Join-Path $Root ".venv\Scripts\python.exe"
 
 Write-Host "[local_video_ui] Root: $Root"
-if (-not (Test-Path (Join-Path $Comfy "main.py"))) {
-    Write-Error "Expected ComfyUI at $Comfy (main.py missing). Adjust folder layout or set paths."
-}
+& (Join-Path $Root "Ensure-ComfyUI.ps1")
 
 $pyExe = $null
 $pyPre = @()
@@ -63,9 +60,7 @@ try {
 
     Write-Host ""
     Write-Host "Setup finished OK."
-    Write-Host "Next steps (first time):"
-    Write-Host "  1) .\download_models.ps1    # downloads several GB into ComfyUI\models"
-    Write-Host "  2) .\Launch.ps1             # starts ComfyUI + desktop prompt window (no browser)"
+    Write-Host "Next: run .\Launch.ps1 or Launch.bat (will download models on first run if needed, then open the UI)."
     Write-Host ""
 } finally {
     Pop-Location

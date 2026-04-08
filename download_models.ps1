@@ -1,4 +1,4 @@
-# Download Wan 2.1 repackaged weights into ..\comfy_ui\models
+# Download Wan 2.1 repackaged weights into vendor\comfyui\models
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Py = Join-Path $Root ".venv\Scripts\python.exe"

@@ -1,4 +1,5 @@
 .venv/
+vendor/comfyui/
 logs/
 __pycache__/
 *.pyc

@@ -11,8 +11,8 @@ def _default_comfy_root() -> Path:
     env = os.environ.get("LOCAL_VIDEO_UI_COMFY_ROOT", "").strip()
     if env:
         return Path(env).resolve()
-    # Repo layout: git_repos/local_video_ui and git_repos/comfy_ui
-    return Path(__file__).resolve().parent.parent / "comfy_ui"
+    # Bundled layout: local_video_ui/vendor/comfyui (see Ensure-ComfyUI.ps1 / Launch.ps1)
+    return Path(__file__).resolve().parent / "vendor" / "comfyui"
 
 
 COMFY_ROOT: Path = _default_comfy_root()
