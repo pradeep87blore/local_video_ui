@@ -72,6 +72,7 @@ def _write_generation_log(
         f"Local time: {now}",
         "",
         "## Models used for this generation",
+        f"- Wan stack: {config.WAN_STACK} (repo: {config.HF_REPO})",
         f"- Diffusion (UNET): {config.MODEL_DIFFUSION_FILE}",
         f"- CLIP (text encoder): {config.MODEL_CLIP_FILE}",
         f"- VAE: {config.MODEL_VAE_FILE}",
@@ -223,7 +224,8 @@ def generate_video_from_prompt(
         log.warning("Could not write last_prompt.json: %s", e)
 
     log.info(
-        "Models: UNET=%s CLIP=%s VAE=%s",
+        "Models (Wan %s): UNET=%s CLIP=%s VAE=%s",
+        config.WAN_STACK,
         config.MODEL_DIFFUSION_FILE,
         config.MODEL_CLIP_FILE,
         config.MODEL_VAE_FILE,

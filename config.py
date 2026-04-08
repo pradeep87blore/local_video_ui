@@ -21,9 +21,23 @@ COMFY_ROOT: Path = _default_comfy_root()
 COMFY_HOST = os.environ.get("LOCAL_VIDEO_UI_COMFY_HOST", "127.0.0.1")
 COMFY_PORT = int(os.environ.get("LOCAL_VIDEO_UI_COMFY_PORT", "8188"))
 
-# Official Comfy-Org repackaged Wan 2.1 (see ComfyUI_examples/wan)
-HF_REPO = "Comfy-Org/Wan_2.1_ComfyUI_repackaged"
-MODEL_FILES: list[tuple[str, str, str]] = [
+# Wan stack: "2.1" (default) or "2.2" — sets HF repo + which weights download_models / check_models expect.
+# Wan 2.2 uses Comfy-Org/Wan_2.2_ComfyUI_Repackaged (ti2v 5B + wan2.2 VAE). Same simple graph as 2.1; other
+# Wan 2.2 variants (e.g. 14B T2V high+low) need different workflows and extra files — not in this UI yet.
+def _wan_stack() -> str:
+    v = os.environ.get("LOCAL_VIDEO_UI_WAN_STACK", "2.1").strip().lower()
+    if v in ("2.2", "22", "wan2.2", "wan_2.2"):
+        return "2.2"
+    return "2.1"
+
+
+WAN_STACK: str = _wan_stack()
+
+# Hugging Face repos (Comfy-Org repackaged layouts)
+HF_REPO_WAN21 = "Comfy-Org/Wan_2.1_ComfyUI_repackaged"
+HF_REPO_WAN22 = "Comfy-Org/Wan_2.2_ComfyUI_Repackaged"
+
+MODEL_FILES_WAN21: list[tuple[str, str, str]] = [
     # (hf path under repo, comfy subdir under models/, local filename)
     (
         "split_files/diffusion_models/wan2.1_t2v_1.3B_fp16.safetensors",
@@ -41,6 +55,28 @@ MODEL_FILES: list[tuple[str, str, str]] = [
         "wan_2.1_vae.safetensors",
     ),
 ]
+
+# Single-UNET ti2v 5B (~10 GB) + same UMT5 fp8 as 2.1 + Wan 2.2 VAE (see ComfyUI Wan 2.2 docs)
+MODEL_FILES_WAN22: list[tuple[str, str, str]] = [
+    (
+        "split_files/diffusion_models/wan2.2_ti2v_5B_fp16.safetensors",
+        "diffusion_models",
+        "wan2.2_ti2v_5B_fp16.safetensors",
+    ),
+    (
+        "split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "text_encoders",
+        "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+    ),
+    (
+        "split_files/vae/wan2.2_vae.safetensors",
+        "vae",
+        "wan2.2_vae.safetensors",
+    ),
+]
+
+HF_REPO: str = HF_REPO_WAN22 if WAN_STACK == "2.2" else HF_REPO_WAN21
+MODEL_FILES: list[tuple[str, str, str]] = MODEL_FILES_WAN22 if WAN_STACK == "2.2" else MODEL_FILES_WAN21
 
 # Filenames under ComfyUI models/ (same as workflow_wan_t2v + download_models)
 MODEL_DIFFUSION_FILE = MODEL_FILES[0][2]

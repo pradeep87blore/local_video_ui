@@ -1,5 +1,7 @@
 """
-Download Wan 2.1 repackaged files into the sibling ComfyUI models/ folders.
+Download Comfy-Org Wan repackaged weights into ComfyUI models/ (see config HF_REPO + MODEL_FILES).
+
+Set LOCAL_VIDEO_UI_WAN_STACK=2.2 before running to pull Wan 2.2 (ti2v 5B + wan2.2 VAE); default is 2.1.
 """
 from __future__ import annotations
 

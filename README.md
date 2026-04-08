@@ -2,7 +2,7 @@
 
 ## What this project is for
 
-This is a **small Windows companion app** for **local AI text-to-video**: you type what you want to see, set an approximate clip length, and get an **MP4** file on disk—without opening ComfyUI’s node graph or a browser. Under the hood it drives **[ComfyUI](https://github.com/comfyanonymous/ComfyUI)** over its HTTP API using a fixed **Wan 2.1** text-to-video workflow (the same family of models Comfy’s official examples use), so generation stays **on your machine** (GPU recommended).
+This is a **small Windows companion app** for **local AI text-to-video**: you type what you want to see, set an approximate clip length, and get an **MP4** file on disk—without opening ComfyUI’s node graph or a browser. Under the hood it drives **[ComfyUI](https://github.com/comfyanonymous/ComfyUI)** over its HTTP API using a fixed **Wan** text-to-video workflow (default **Wan 2.1** 1.3B; optional **Wan 2.2** ti2v 5B via env — see Configuration), so generation stays **on your machine** (GPU recommended).
 
 **Who it’s for:** people who already want Comfy + Wan but prefer a **single prompt box**, a **progress bar**, and **organized outputs** over clicking nodes. It is **not** a hosted service: ComfyUI runs locally, and this UI is just a front end plus automation.
 
@@ -31,7 +31,7 @@ On the first run the script will:
 
 1. Clone ComfyUI into **`vendor/comfyui`** (ignored by git; GPL-3.0, see below).
 2. Create **`.venv`** and install PyTorch, ComfyUI dependencies, and this UI’s [`requirements.txt`](requirements.txt).
-3. Download **Wan 2.1** repackaged weights (several GB) into `vendor/comfyui/models/` if they are missing.
+3. Download **Wan** repackaged weights from Hugging Face (**2.1** or **2.2** depending on `LOCAL_VIDEO_UI_WAN_STACK`) into `vendor/comfyui/models/` if they are missing.
 4. Start ComfyUI in a separate window, wait until `http://127.0.0.1:8188` is reachable, then open the **desktop prompt** window.
 
 Later runs skip cloning and pip installs unless you deleted `.venv`; model files are only re-downloaded if missing.
@@ -45,6 +45,7 @@ Later runs skip cloning and pip installs unless you deleted `.venv`; model files
 
 | Variable | Purpose |
 |----------|---------|
+| `LOCAL_VIDEO_UI_WAN_STACK` | `2.1` (default) or `2.2`. Chooses Hugging Face repo and which weights **`download_models`** / **`check_models`** / the workflow use. **2.2** uses [Comfy-Org/Wan_2.2_ComfyUI_Repackaged](https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged): **wan2.2_ti2v_5B_fp16**, shared **umt5** fp8, **wan2.2_vae** (~10 GB + enc + VAE). Set **before** launching Python (e.g. `set LOCAL_VIDEO_UI_WAN_STACK=2.2` then `Launch.bat`, or system env). |
 | `LOCAL_VIDEO_UI_COMFY_ROOT` | Override path to ComfyUI tree (default: `vendor/comfyui` under this project). |
 | `LOCAL_VIDEO_UI_COMFY_HOST` / `LOCAL_VIDEO_UI_COMFY_PORT` | HTTP API host/port (default `127.0.0.1:8188`). |
 | `LOCAL_VIDEO_UI_AUDIO=0` | Disable MusicGen background audio. |
