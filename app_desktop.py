@@ -1,5 +1,5 @@
 """
-Minimal desktop UI (Tkinter): prompt + duration + Generate — no browser, no node graph.
+Desktop UI (Tkinter): prompt + queue + serial generation worker.
 Run via Launch.ps1 / Launch.bat after ComfyUI is up.
 """
 from __future__ import annotations
@@ -16,6 +16,7 @@ import comfy_client
 import config
 import generation
 import resource_monitor
+from generation_queue import PersistentJobQueue, QueuedJob
 
 
 def _open_path(path: str) -> None:
@@ -34,17 +35,21 @@ def main() -> None:
     log.info("COMFY_ROOT=%s", config.COMFY_ROOT)
     log.info("ComfyUI %s", comfy_client.server_http_url())
 
+    pq = PersistentJobQueue()
+    stop_worker = threading.Event()
+    worker_running = [False]
+
     root = tk.Tk()
-    root.title("Local video — prompt")
-    root.minsize(520, 460)
-    root.geometry("680x520")
+    root.title("Local video — prompt queue")
+    root.minsize(560, 560)
+    root.geometry("720x620")
 
     frm = ttk.Frame(root, padding=12)
     frm.pack(fill=tk.BOTH, expand=True)
 
-    ttk.Label(frm, text="Describe the video (one prompt only):").pack(anchor=tk.W)
+    ttk.Label(frm, text="Describe the video (add each prompt to the queue):").pack(anchor=tk.W)
 
-    prompt_box = scrolledtext.ScrolledText(frm, height=7, wrap=tk.WORD, font=("Segoe UI", 11))
+    prompt_box = scrolledtext.ScrolledText(frm, height=6, wrap=tk.WORD, font=("Segoe UI", 11))
     prompt_box.pack(fill=tk.BOTH, expand=True, pady=(6, 8))
     prompt_box.insert(tk.END, "")
 
@@ -87,6 +92,30 @@ def main() -> None:
         variable=save_preview_var,
     ).pack(anchor=tk.W)
 
+    queue_label = ttk.Label(frm, text="Queue (runs in order; saved to disk — survives restart):")
+    queue_label.pack(anchor=tk.W, pady=(4, 2))
+
+    queue_frame = ttk.Frame(frm)
+    queue_frame.pack(fill=tk.BOTH, expand=False, pady=(0, 6))
+    queue_scroll = ttk.Scrollbar(queue_frame)
+    queue_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+    queue_list = tk.Listbox(
+        queue_frame,
+        height=6,
+        font=("Segoe UI", 9),
+        yscrollcommand=queue_scroll.set,
+        selectmode=tk.SINGLE,
+    )
+    queue_list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    queue_scroll.config(command=queue_list.yview)
+
+    q_btn_row = ttk.Frame(frm)
+    q_btn_row.pack(fill=tk.X, pady=(0, 6))
+    add_btn = ttk.Button(q_btn_row, text="Add to queue")
+    add_btn.pack(side=tk.LEFT)
+    remove_btn = ttk.Button(q_btn_row, text="Remove selected")
+    remove_btn.pack(side=tk.LEFT, padx=(8, 0))
+
     progress_var = tk.DoubleVar(value=0.0)
     bar = ttk.Progressbar(frm, variable=progress_var, maximum=100.0, length=560, mode="determinate")
     bar.pack(fill=tk.X, pady=(0, 8))
@@ -94,18 +123,15 @@ def main() -> None:
     btn_row = ttk.Frame(frm)
     btn_row.pack(fill=tk.X, pady=(0, 8))
 
-    run_btn = ttk.Button(btn_row, text="Generate video")
-    run_btn.pack(side=tk.LEFT)
-
     open_btn = ttk.Button(btn_row, text="Open last video", state=tk.DISABLED)
-    open_btn.pack(side=tk.LEFT, padx=(8, 0))
+    open_btn.pack(side=tk.LEFT)
 
     folder_btn = ttk.Button(btn_row, text="Open output folder", state=tk.DISABLED)
     folder_btn.pack(side=tk.LEFT, padx=(8, 0))
 
     last_video: list[str | None] = [None]
 
-    status = scrolledtext.ScrolledText(frm, height=8, wrap=tk.WORD, state=tk.DISABLED, font=("Consolas", 10))
+    status = scrolledtext.ScrolledText(frm, height=8, wrap=tk.WORD, state=tk.DISABLED, font=("Consolas", 9))
     status.pack(fill=tk.BOTH, expand=True)
 
     def set_status(text: str) -> None:
@@ -114,8 +140,17 @@ def main() -> None:
         status.insert(tk.END, text)
         status.configure(state=tk.DISABLED)
 
-    def on_done(path: str | None, msg: str) -> None:
-        run_btn.configure(state=tk.NORMAL)
+    def refresh_queue_list() -> None:
+        queue_list.delete(0, tk.END)
+        jobs = pq.snapshot()
+        for i, j in enumerate(jobs):
+            prefix = "► " if (worker_running[0] and i == 0) else f"{i + 1}. "
+            one_line = j.prompt.replace("\n", " ").strip()
+            if len(one_line) > 90:
+                one_line = one_line[:87] + "..."
+            queue_list.insert(tk.END, prefix + one_line)
+
+    def on_job_done(path: str | None, msg: str) -> None:
         set_status(msg)
         if path:
             progress_var.set(100.0)
@@ -124,15 +159,12 @@ def main() -> None:
             folder_btn.configure(state=tk.NORMAL)
         else:
             progress_var.set(0.0)
-            last_video[0] = None
-            open_btn.configure(state=tk.DISABLED)
-            folder_btn.configure(state=tk.DISABLED)
 
     def safe_progress(p: float) -> None:
         pct = min(100.0, max(0.0, p * 100.0))
         root.after(0, lambda v=pct: progress_var.set(v))
 
-    def run_generate() -> None:
+    def add_to_queue() -> None:
         text = prompt_box.get("1.0", tk.END).strip()
         if not text:
             messagebox.showinfo("Prompt", "Enter a prompt first.")
@@ -142,21 +174,85 @@ def main() -> None:
         except (tk.TclError, ValueError):
             messagebox.showerror("Duration", "Enter a valid number for length (seconds).")
             return
-        run_btn.configure(state=tk.DISABLED)
-        progress_var.set(0.0)
-        set_status("Working…\nLog: " + str(generation.LOG_FILE))
+        job = QueuedJob.create(
+            text,
+            d,
+            add_audio=add_audio_var.get(),
+            save_preview_frames=save_preview_var.get(),
+        )
+        pq.add(job)
+        refresh_queue_list()
+        set_status(
+            f"Added to queue (position {len(pq.snapshot())}).\n"
+            f"Queue file: {pq.path}\n"
+            f"Log: {generation.LOG_FILE}"
+        )
 
-        def work() -> None:
-            path, msg = generation.generate_video_from_prompt(
-                text,
-                duration_seconds=d,
-                on_progress=safe_progress,
-                add_audio=add_audio_var.get(),
-                save_preview_frames=save_preview_var.get(),
+    def remove_selected() -> None:
+        sel = queue_list.curselection()
+        if not sel:
+            messagebox.showinfo("Queue", "Select a row to remove.")
+            return
+        index = int(sel[0])
+        if worker_running[0] and index == 0:
+            messagebox.showwarning(
+                "Queue",
+                "Cannot remove the job that is currently running. Wait for it to finish.",
             )
-            root.after(0, lambda: on_done(path, msg))
+            return
+        if not pq.remove_at_index(index):
+            messagebox.showerror("Queue", "Could not remove that entry.")
+            return
+        refresh_queue_list()
+        set_status(f"Removed item from queue.\nQueue file: {pq.path}")
 
-        threading.Thread(target=work, daemon=True).start()
+    def worker_loop() -> None:
+        while not stop_worker.is_set():
+            job = pq.wait_peek_first(timeout=0.5)
+            if stop_worker.is_set() or pq.is_stopped():
+                break
+            if job is None:
+                continue
+            worker_running[0] = True
+            root.after(0, lambda: progress_var.set(0.0))
+            root.after(0, refresh_queue_list)
+            path: str | None = None
+            msg = ""
+            try:
+                path, msg = generation.generate_video_from_prompt(
+                    job.prompt,
+                    duration_seconds=job.duration_seconds,
+                    on_progress=safe_progress,
+                    add_audio=job.add_audio,
+                    save_preview_frames=job.save_preview_frames,
+                )
+            except Exception as e:
+                log.exception("Generation failed: %s", e)
+                path = None
+                msg = f"{type(e).__name__}: {e}"
+            finally:
+                pq.complete_first(job.id)
+                worker_running[0] = False
+                root.after(0, refresh_queue_list)
+                p_final, m_final = path, msg
+                root.after(0, lambda: on_job_done(p_final, m_final))
+
+    worker_thread = threading.Thread(target=worker_loop, name="generation-queue-worker", daemon=True)
+    worker_thread.start()
+
+    refresh_queue_list()
+    if pq.snapshot():
+        set_status(
+            f"Restored {len(pq.snapshot())} job(s) from queue file.\n"
+            f"{pq.path}\n"
+            f"Processing will continue automatically.\nLog: {generation.LOG_FILE}"
+        )
+    else:
+        set_status(
+            f"Queue file (empty): {pq.path}\n"
+            f"Add prompts and click “Add to queue”. Jobs run one at a time.\n"
+            f"Log: {generation.LOG_FILE}"
+        )
 
     def on_open_video() -> None:
         p = last_video[0]
@@ -177,18 +273,21 @@ def main() -> None:
             else:
                 _open_path(str(config.COMFY_ROOT / "output"))
 
-    run_btn.configure(command=run_generate)
+    add_btn.configure(command=add_to_queue)
+    remove_btn.configure(command=remove_selected)
     open_btn.configure(command=on_open_video)
     folder_btn.configure(command=on_open_folder)
 
     ttk.Label(
         frm,
-        text=f"ComfyUI: {comfy_client.server_http_url()}  ·  Log: {generation.LOG_FILE}",
+        text=f"ComfyUI: {comfy_client.server_http_url()}  ·  Queue: {pq.path}  ·  Log: {generation.LOG_FILE}",
         font=("Segoe UI", 8),
         foreground="#555",
     ).pack(anchor=tk.W, pady=(6, 0))
 
     def on_close() -> None:
+        stop_worker.set()
+        pq.stop()
         _stop_resources()
         root.destroy()
 
