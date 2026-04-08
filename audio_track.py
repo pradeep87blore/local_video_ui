@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Any
 
 LOG = logging.getLogger(__name__)
 
@@ -40,6 +41,25 @@ def _musicgen_audio_prompt(scene_prompt: str) -> str:
 def _max_tokens_for_duration(duration_sec: float) -> int:
     # ~50 codec steps per second; hard cap 1503 (~30s) per MusicGen limits
     return int(min(1503, max(64, round(float(duration_sec) * 50.0))))
+
+
+def _write_wav_pcm16(path: Path, x: Any, sample_rate: int) -> None:
+    """Write float audio [-1, 1] as 16-bit PCM WAV using stdlib wave (no soundfile)."""
+    import wave
+
+    import numpy as np
+
+    x = np.clip(np.asarray(x, dtype=np.float64), -1.0, 1.0)
+    if x.ndim == 1:
+        x = x[:, np.newaxis]
+    nch = int(x.shape[1])
+    pcm = np.clip(x * 32767.0, -32768, 32767).astype("<i2")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(path), "wb") as wf:
+        wf.setnchannels(nch)
+        wf.setsampwidth(2)
+        wf.setframerate(int(sample_rate))
+        wf.writeframes(pcm.tobytes())
 
 
 def generate_musicgen_wav(
@@ -78,12 +98,11 @@ def generate_musicgen_wav(
         )
 
     import numpy as np
-    import soundfile as sf
 
     # Hugging Face MusicGen: [batch, channels, samples] (see model card / scipy.io example).
     av = audio_values[0].detach().float().cpu().numpy()
     if av.ndim == 2:
-        # channels x samples -> time x channels for soundfile
+        # channels x samples -> time x channels
         x = np.clip(av.T, -1.0, 1.0)
     elif av.ndim == 1:
         x = np.clip(av[:, np.newaxis], -1.0, 1.0)
@@ -101,8 +120,7 @@ def generate_musicgen_wav(
     if sr is None:
         sr = 32000
 
-    out_wav.parent.mkdir(parents=True, exist_ok=True)
-    sf.write(str(out_wav), x, int(sr), subtype="PCM_16")
+    _write_wav_pcm16(out_wav, x, int(sr))
 
     del model
     del processor

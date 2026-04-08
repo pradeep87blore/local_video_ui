@@ -8,7 +8,7 @@ if (Test-Path $MainPy) {
     return
 }
 
-Write-Host "[EnsureComfy] ComfyUI not found at $Comfy — cloning official repository …"
+Write-Host ('[EnsureComfy] ComfyUI not found at ' + $Comfy + ' - cloning official repository ...')
 $VendorDir = Join-Path $Root "vendor"
 if (-not (Test-Path $VendorDir)) {
     New-Item -ItemType Directory -Path $VendorDir | Out-Null
@@ -32,4 +32,4 @@ if (-not (Test-Path $MainPy)) {
     Write-Error "ComfyUI main.py still missing after clone."
 }
 
-Write-Host "[EnsureComfy] ComfyUI is ready at $Comfy"
+Write-Host ('[EnsureComfy] ComfyUI is ready at ' + $Comfy)

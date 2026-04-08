@@ -4,7 +4,7 @@ $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Comfy = Join-Path $Root "vendor\comfyui"
 $VenvPy = Join-Path $Root ".venv\Scripts\python.exe"
 
-Write-Host "[local_video_ui] Root: $Root"
+Write-Host ('[local_video_ui] Root: ' + $Root)
 & (Join-Path $Root "Ensure-ComfyUI.ps1")
 
 $pyExe = $null
@@ -23,24 +23,24 @@ if (-not $pyExe) {
     Write-Error "Python not found. Install Python 3.10+ from https://www.python.org/downloads/ (check 'Add to PATH') and retry."
 }
 
-Write-Host "[local_video_ui] Using: $pyExe $($pyPre -join ' ')"
+Write-Host ('[local_video_ui] Using: ' + $pyExe + ' ' + ($pyPre -join ' '))
 & $pyExe @pyPre --version
 if ($LASTEXITCODE -ne 0) { Write-Error "Python invocation failed" }
 
 Push-Location $Root
 try {
     if (-not (Test-Path $VenvPy)) {
-        Write-Host "[local_video_ui] Creating virtual environment .venv ..."
+        Write-Host '[local_video_ui] Creating virtual environment .venv ...'
         & $pyExe @pyPre -m venv .venv
         if ($LASTEXITCODE -ne 0) { Write-Error "venv creation failed" }
     }
 
     # Use `python -m pip` so pip can upgrade itself on Windows (avoids "please run python -m pip" errors).
-    Write-Host "[local_video_ui] Upgrading pip ..."
+    Write-Host '[local_video_ui] Upgrading pip ...'
     & $VenvPy -m pip install --upgrade pip wheel
     if ($LASTEXITCODE -ne 0) { Write-Error "pip upgrade failed" }
 
-    Write-Host "[local_video_ui] Installing PyTorch (CUDA 12.8 wheel). If this fails, see https://pytorch.org/get-started/locally/"
+    Write-Host '[local_video_ui] Installing PyTorch (CUDA 12.8 wheel). If this fails, see https://pytorch.org/get-started/locally/'
     & $VenvPy -m pip install torch torchvision torchaudio --index-url "https://download.pytorch.org/whl/cu128"
     if ($LASTEXITCODE -ne 0) {
         Write-Warning "cu128 install failed; trying cu126 ..."
@@ -49,12 +49,12 @@ try {
     }
 
     $ComfyReq = Join-Path $Comfy "requirements.txt"
-    Write-Host "[local_video_ui] Installing ComfyUI requirements from $ComfyReq"
+    Write-Host ('[local_video_ui] Installing ComfyUI requirements from ' + $ComfyReq)
     & $VenvPy -m pip install -r $ComfyReq
     if ($LASTEXITCODE -ne 0) { Write-Error "ComfyUI requirements install failed" }
 
     $UiReq = Join-Path $Root "requirements.txt"
-    Write-Host "[local_video_ui] Installing thin UI requirements from $UiReq"
+    Write-Host ('[local_video_ui] Installing thin UI requirements from ' + $UiReq)
     & $VenvPy -m pip install -r $UiReq
     if ($LASTEXITCODE -ne 0) { Write-Error "UI requirements install failed" }
 
